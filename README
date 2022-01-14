@@ -1,0 +1,338 @@
+MontAGN code quick guide
+V 2.6
+
+a code in Python 2.7 (ipython recommanded for display reasons)
+else, consider using matplotlib.pyplot.ion
+
+################################################
+## Installation
+
+MontAGN is distributed as a python library.
+To use MontAGN:
+- download the *.py files and put them into your pythonpath
+- create a directory for the simulation, it should contain
+  * an "Input" directory where to put the dust, spectra and parameter files
+  * an "Output" directory for output files
+- in a ipython (or python) terminal, use "import montagn"
+
+################################################
+## Main command for launching the simulation : montAGN
+
+    montAGN(usethermal = 1, nphot = [], path='', filename = 'test', paramfile = [], usemodel = 0., ask = 1, add = 0, model = [], nscattmax = 50, force_wvl = [], wvl_max = 1e5, nang = 999 , nsize = 100 , nsimu = 1,  display = 1, cluster = 0, cmap = [], vectormode = 0, plotinfo = [], debug = [], verbose = 0, unit='')
+
+    Launch a radiative transfer simulation
+    if a mandatory parameter is not given, it will be asked
+    
+    MAIN INPUTS:
+    [add          = add the output to an existing file ([0] or 1)]
+    [ask          = enabled or disabled interactive mode (0 or [1])]
+    [cluster      = launching or not on a cluster (disable some displays [0] or 1)]
+    [filename     = prefixe of output file (string or set of strings ['test'])]
+    [model        = already existing model (model object [])
+    [nphot        = number of photons packets to launch (any integer [])]
+    [paramfile    = name of the parameter file to be load (string or set of strings [], ask need to be set to 0)]
+    [path         = relative path where to locate Input/paramfile and to record output files (string or set of strings [''])]
+    [usemodel     = use a predefined model, in that case, ask should be set to 0and paramfile to [] ([], -1, -2, -3, -4, -5, -6, 1)]
+    [usethermal   = use the absorption/thermalisation/reemission process (0 or [1])]
+
+    MODEL TUNING KEYWORDS:
+    [force_wvl    = force the emitted photons to be at this wavelentgh (in m) (positive float [])]
+    [nang         = angular resolution - Must be an odd number ! (integer [999])]
+    [nscattmax    = number of scattering limit (integer [10])
+    [nsize        = size parameter resolution on phases functions (integer [100])]
+    [wvl_max      = consider that photons above the indicated wavelength (in m) propagate without interaction (positive float [1e5])]
+
+    DISPLAY KEYWORDS:
+    [cmap         = colormap to be used (string or set of string [])]
+    [display      = enabled or disabled display - for use on a cluster or without matplotlib (0 or [1])]
+    [unit         = distance unit to be used (string or set of strings, 'AU' or 'pc'). If not specified, pc will be used.]
+
+    ADVANCED KEYWORDS:
+    [debug        = the list of important steps to be printed (among 'T', 'Rsub', 'tau', 'scat', 'polar', 'dust', [] by default)]
+    [nsimu        = simulation number - setting other than 1 will disabled some display (integer [1])]
+    [plotinfo     = plot graphs of phase function, albedo, x... (list of integers [[]])]
+    [vectormode   = plot a map with polarization vectors ([0] or 1)]
+    [verbose      = gives or not further informations on the computations (1 or [0])]
+
+    OUTPUTS:
+    -gives as an output a montagn model object, containing the main parameters of the simulation (cf montagn_class.py)
+    -some *xxx_phot.dat file containing (one for each viewing angles xxx from 0 to 180 degrees):
+    	  - photon launching number			[]
+	  - theta - altitude angle			[rad]
+	  - phi - azimutal angle			[rad]
+	  - Stokes Q					C[0,1]
+	  - Stokes U					C[0,1]
+	  - Stokes V    				C[0,1]
+	  - ref angle of the scattering plan    	[rad]
+	  - position x of last diffusion		[pc]
+	  - position y of last diffusion		[pc]
+	  - position z of last diffusion   		[pc]
+	  - number of interactions    			[]
+	  - number of reemissions    			[]
+	  - wavelentgh    				[m]
+	  - source name   				['']
+	  - paquets energy    				[J]
+	  - Emission time of the packet    		[s]
+	  - Total emission time				[s]
+
+    -a file *_T_update.dat listing all the temperature updates that occured during the simulation
+    -some files *_density_xy.dat giving the density map of the dust grains in the xy plan
+    -some files *_density_xz.dat giving the density map of the dust grains in the xz plan
+
+(for a complete description, please consider reading the MontAGN manual)
+
+
+## EXAMPLES:
+
+    $ipython
+    >import montagn
+    >mymodel=montagn.MontAGN(nphot=1000,paramfile='test.txt',usethermal=0)
+
+    will run a simulation with 1000 photon packets (ie. rather short, ideal for tests), without dust thermalisation and with importing model from 'test.txt' parameter file, assumed to be located in the current directory.
+
+#################################################
+## Parameter files:
+
+Parameter files are the main way of importing a model into MontAGN. Alternatively you can also load an already existing model object (using keyword model= when launching montAGN), create a new model from already existing parameter hard-coded in MontAGN (usemodel=## the number of your model) or define your model step by step by answering a sample of questions (by setting ask=1).
+
+Parameter files should contain the following informations:
+-at least one line of dust definition starting with the 'dust' keyword:
+
+dust dust_pop_name dust_type rgmin rgmax alpha rsub
+
+* dust_pop_name is the reference name that will be used to design this population
+* dust_type corresponds to the characteristics of dust. It has to be one of
+  	    - silicates
+	    - graphites_ortho
+	    - graphites_para
+	    - electrons
+	    - pah_neutral
+	    - pah_ionised
+* rgmin is the minimal radius of grains (in m)
+* rgmax is the maximal radius of grains (in m)
+* alpha is the power law indice of the dust's radius distribution (RMN)
+
+-at least one line of dust structure with the keyword corresponding to the chosen geometry (see the list below):
+geometry dut_pop_name param1 param2 param3 ...
+
+* geometry correspond to the chosen geometry (see section geometries)
+* dust_pop_name has to be among the defined dust populations and refers to the one to be consider for this geometry (except 'fractal' that does not require a dust_pop_name)
+* param1,2,3... correspond to the different parameters required by the geometry, different for each geometry
+
+-at least one line of source definition following the 'source' keyword:
+
+source source_name spectre_filename luminosity emission_properties
+
+* source_name will be the name that the simulation will refers to as the origin of the packets
+* spectre_filename is the name of the file to be loaded in the 'Input' directory, containing the spectra of the source
+* luminosity is the source luminosity (in W)
+* emission_properties corresponds to the emission and polarisation initial direction of the source. Is there is no particular emission direction, set it to 'default' (see the manual for more information)
+
+-the four following lines associated with the following keywords, defining the model:
+
+* the resolution of one cell of the map:
+res_map 1AU
+
+* the half-size of the simulation box:
+rmax_map 25AU
+
+* the aperture of the funnel (0 if there is no funnel)
+af 0.
+
+* the energy of the photon packets
+enpaq 1e26
+
+## Short example of parameter file:
+    dust silicates silicates 0.005e-6 0.25e-6 -3.5 0.05AU
+    spherepower [silicates] [5800.0] 0 1.0AU
+    res_map 1AU
+    rmax_map 25AU
+    source AGN spectre_NIRpeak.dat 3.846e26 'default'
+    af 0.
+    enpaq 3.846e26
+
+#################################################
+## Geometries
+
+All geometries are organised in a similar way:
+* they take as a first parameters the name(s) of the dust population(s) to be used to fill the given geometry (except 'fractal')
+* the second one is the corresponding dust density(ies), in particles/m3 (except once again 'fractal')
+  -- Both these parameters have to be given between [] even if only one dust population is used --
+* the following arguments are dependent on the geometries and are given in the following with their description for each geometry:
+
+# BASIC GEOMETRIES
+
+- 'densturb' xxxx not usable yet
+- 'spherepower' - 2 parameters
+  	      - Radial power index
+	      - Radial typical profile size (in m)
+- 'gaussianprofile' 6 parameters
+  	      - Power index
+  	      - Vertical power index
+  	      - Radial power index
+  	      - Radial caracteristic size (in m)
+  	      - Vertical caracteristic size (in m)
+  	      - Outer radius (in m)
+- 'cloud' - 8 parameters
+  	      - x0
+	      - y0
+	      - z0
+	      - Largest semi-axis
+	      - Second semi-axis
+	      - Third semi-axis
+	      - First axis polar angle
+	      - First axis azimutal angle
+- 'torus' - 2 parameters
+  	      - Disc outer radius (in m)
+	      - Disc half-angle (in degree)
+	      WARNING this angle is defined as the half-angle of the torus and NOT as its half-opening angle
+- 'cone' - 2 parameters
+  	      - Cone outer radius (in m)
+	      - Cone half-aperture angle (in degree)
+- 'cylinder' - 2 parameters
+  	      - Cylinder radius (in m)
+	      - Cylinder height (in m)           
+- 'denspower' - 3 parameters
+  	      - Radial power index
+	      - Radial typical profile size (in m)
+	      - Vertical decay size (in m)
+- 'shell' - 2 parameters
+  	      - Inner radius (in m) 
+	      - Outer radius (in m) 
+- 'fractal' - 7 parameters (without any previous parameter for dust populations)
+  	    (a hierarchically clumped shell (Elmegreen 1997) of given grains based on the algorithm described in Mathis et al. (2002))
+	      - Number of new positions that, at each level, are substituted for each position in the previous level (N^H positions after H levels)
+    	      - Volume fractal dimension
+    	      - Number of hierarchical levels
+    	      - Inner radius
+    	      - Outer radius
+    	      - Total mass of the hierarchically clumped shell 
+    	      - Ratio of grains
+
+# COMPOSITE GEOMETRIES
+
+- 'AGN_simple' - 8 overall parameters, composite of torus, shell and cone
+  	      - [name(s) of the dust population(s)]
+	      - [dust density(ies) in the torus]  (in particles/m3)
+	      - [dust density(ies) in the shell]  (in particles/m3)
+	      - [dust density(ies) in the cone]  (in particles/m3)
+  	      - Disc outer radius and shell inner radius (in m)
+	      - Cone and shell outer radius (in m)
+	      - Disc half-angle (in degree)
+	      WARNING this angle is defined as the half-angle of the torus and NOT as its half-opening angle
+	      - Cone half-aperture angle (in degree)
+- 'torus_Murakawa' - 4 parameters
+  	      - Disc outer radius (in pc)
+	      - Ratio of the disk height at the disk boundary to the disk outer radius
+	      - Envelope mass infall (in Msol/yr)
+	      - Mass of the star (in Msol)
+
+
+#################################################
+## simple example of a simulation of a silicate dust cocoon surrounding a star:
+
+-parameter file 'example.txt':
+"
+dust silicates silicates 0.005e-6 0.25e-6 -3.5 0.05AU
+spherepower [silicates] [5800.0] 0 1.0AU
+res_map 1AU
+rmax_map 25AU
+source AGN spectre_NIRpeak.dat 3.846e26 'default'
+af 0.
+enpaq 3.846e26
+"
+
+- run the simulation from a ipython terminal:
+>import montagn
+>mymodel=montagn.montAGN(ask=0,paramfile='example.txt',add=0,nphot=20000,filename='test')
+
+	*run a simulation of 20 000 photons packets, loading the model defined in the parameter file Input/example.txt
+	 and save the results as files 'Output/test_***_phot.dat' (see output)
+	 erasing the previous Output/test_***_phot.dat if alreading existing.
+
+
+#################################################
+## MONTAGN DISPLAYS ## TO BE IMPROVED
+#################################################
+
+## PLOT_IMAGE
+
+>montagn.mout.plot_image(filename)
+
+display the image associated and reduced from files "filename_phot.dat"
+
+Keywords :
+*outname - string
+	   Nom des fichiers de sortie
+*suffixe - string
+	   Suffixe à ajouter à la fin des fichiers de sauvegarde
+*thetaobs - float
+	    angle en degrés d'observation (90 recommandé pour NGC 1068)
+*dtheta - intervalle de tolérance de +-dtheta autour de la valeur thetaobs en degrés
+       	 [5] par défaut
+         Si l'un des deux keywords précédents ne sont pas précisés, tous les photons présents dans le fichier sont utilisés
+*obj - "star" ou "AGN" permet de définir la taille de l'image affichée (UA ou pc)
+*path - string
+      	défini le répertoire où charger l'image à afficher.
+*dat - 0 ou 1
+       1 par défaut pour ajouter '.dat' aux fichiers lus
+*resimage - int
+	    taille en pixel des cotés de l'image (51 pour une image de 51x51 par défaut) 
+*resunit - string
+	   'pixel' par défaut, indique l'unité du keyword *resimage
+*diffn - int
+       	 si indiqué restreint l'analyse aux photons diffusés exactement diffn fois
+*ndiffmax - int
+	    si indiqué restreint l'analyse aux photons diffusés moins de ndiffmax fois
+*cmap - string
+      	permet de changer l'échelle de couleur ('jet' par défaut, 'yorick' pour 'gist_earth'...)
+(*rebin - int
+	  0 par défaut
+	  int pour rééchantilloner le centre par int x int)
+(*rebinsize - int
+	      30 par défaut
+	      demi-taille de la zone centrale à rééchantillonner (pixels))
+*enpaq - float
+       	 énergie des paquets de photons au début de la simulation à préciser pour la probabilité
+	 (par défaut 3.86e26) 
+*coupe - 0 ou 1
+       	 1 permet d'effectuer si activé des coupes des lignes centrales pour en tirer
+       	 l'histogramme des angles de polarisation 
+	 (0 par défaut)
+(*extract - [Rex,Zex]
+	    Extrait si spécifier plus d'informations de la zone centrale Rex x Zex)
+*vectormod - affiche si activé (1 par défaut) une superposition de vecteurs polarisation
+	     sur une carte d'intensité polarisée
+*sym - utilise ou non (par défaut) les symmétries hat-bas et droite-gauche dans le calcul des cartes de Q et U
+       0 par défaut
+       1 symmétrie haut-bas
+       2 symmétrie 4 quadrants
+*rec - 0 (défaut) ou 1 pour enregistrer les images en sortie
+*saveformat - string
+	      'pdf' (par défaut) ou 'png', format des images en sortie
+
+(rebin - 0 pour ne rien changer, # pour effectuer un rebinning au centre par carrés de # x #)
+(rebinsize - demi-taille de la zone à rebinner, en pixels (30 par défaut) )
+(gif - 1 pour ne rien faire (défaut) ou # pour enregistrer # images en .png à des fins d'exportations en gif)
+
+
+#################################################
+## commande d'affichage des cartes de température :
+>plot_Tupdate(filename)
+
+	Affiche les différentes cartes de températures calculées depuis le fichier "filename_T_update.dat"
+
+Keywords :
+
+*path - string
+      	défini le répertoire où charger l'image à afficher.
+*dat - 0 ou 1
+       1 par défaut pour ajouter '_T_update.dat' aux fichiers lus
+*unity - string
+	 'pc' par défaut, indique l'unité des échelles des images
+*rec - 0 (défaut) ou 1 pour enregistrer les images en sortie
+*size - int
+      	100 par défaut, nombre de pixels des cartes de température
+*saveformat - string
+	      'pdf' (par défaut) ou 'png', format des images en sortie
+
